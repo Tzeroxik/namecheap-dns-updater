@@ -51,7 +51,10 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 		defer de_init_tracking_alloc(&track_alloc)
 	}
 
-	err = set_up_and_run_routine()
+	params_slice := init_params_slice(os.args) or_return
+	defer delete_slice(params_slice)
+
+	err = update_routine(params_slice)
 
 	// handle errors
 	error_message: string = ""
@@ -63,14 +66,6 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	}
 
 	log.errorf(error_message, err)
-	return
-}
-
-set_up_and_run_routine :: proc(allocator := context.allocator) -> (err: Run_Error) {
-	context.allocator = allocator
-	params_slice := init_params_slice(os.args) or_return
-	defer delete_slice(params_slice)
-	update_routine(params_slice) or_return
 	return
 }
 
