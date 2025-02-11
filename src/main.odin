@@ -109,18 +109,18 @@ init_params_slice :: proc(args: []string) -> (params_slice: []Params, err: Proce
 	return
 }
 
-de_init_tracking_alloc :: proc(track: ^mem.Tracking_Allocator) {
-	if len(track.allocation_map) > 0 {
-		log.errorf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-		for _, entry in track.allocation_map {
+de_init_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
+	if len(track_alloc.allocation_map) > 0 {
+		log.errorf("=== %v allocations not freed: ===\n", len(track_alloc.allocation_map))
+		for _, entry in track_alloc.allocation_map {
 			log.errorf("- %v bytes @ %v\n", entry.size, entry.location)
 		}
 	}
-	if len(track.bad_free_array) > 0 {
-		log.errorf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-		for entry in track.bad_free_array {
+	if len(track_alloc.bad_free_array) > 0 {
+		log.errorf("=== %v incorrect frees: ===\n", len(track_alloc.bad_free_array))
+		for entry in track_alloc.bad_free_array {
 			log.errorf("- %p @ %v\n", entry.memory, entry.location)
 		}
 	}
-	mem.tracking_allocator_destroy(track)
+	mem.tracking_allocator_destroy(track_alloc)
 }
