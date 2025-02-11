@@ -53,8 +53,11 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 
 	params_slice := init_params_slice(os.args) or_return
 	defer delete_slice(params_slice)
-
-	err = update_routine(params_slice)
+	
+	if err = update_routine(params_slice); err != nil {
+		log.info("Exited without error")
+		return
+	}
 
 	// handle errors
 	error_message: string = ""
