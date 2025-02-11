@@ -49,10 +49,9 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 		mem.tracking_allocator_init(&track_alloc, context.allocator)
 		context.allocator = mem.tracking_allocator(&track_alloc)
 		defer de_init_tracking_alloc(&track_alloc)
-		err = run()
-	} else {
-		err = run()
 	}
+
+	err = set_up_and_run_routine()
 
 	// handle errors
 	error_message: string = ""
@@ -67,7 +66,7 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	return
 }
 
-run :: proc(allocator := context.allocator) -> (err: Run_Error) {
+set_up_and_run_routine :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	context.allocator = allocator
 	params_slice := init_params_slice(os.args) or_return
 	defer delete_slice(params_slice)
