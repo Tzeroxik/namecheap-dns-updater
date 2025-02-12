@@ -4,8 +4,10 @@ import "core:log"
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:time"
 
-ENDPOINT :: "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=${domain}&password=${password}&ip=${ip}"
+update_endpoint :: "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=${domain}&password=${password}&ip=${ip}"
+sleep_time :: time.Minute * 15
 
 Params :: struct {
 	host:     string,
@@ -24,7 +26,7 @@ Update_Routine_Error :: union {
 
 Process_Args_Error :: union {
 	mem.Allocator_Error,
-	Args_Error,
+	Args_Error
 }
 
 Args_Error :: enum {
@@ -53,30 +55,36 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 
 	params_slice := init_params_slice(os.args) or_return
 	defer delete_slice(params_slice)
-	
+
 	if err = update_routine(params_slice); err != nil {
-		log.info("Exited without error")
+		log.info("setup_and_run - Exited without error")
 		return
 	}
 
 	// handle errors
 	error_message: string = ""
 	switch _ in err {
-	case Process_Args_Error:
-		error_message = "error processing arguments %s"
-	case Update_Routine_Error:
-		error_message = "error while looping %s"
+	case Process_Args_Error: error_message = "setup_and_run - error processing arguments - %s"
+	case Update_Routine_Error: error_message = "setup_and_run - error while looping - %s"
 	}
 
 	log.errorf(error_message, err)
 	return
 }
 
-update_routine :: proc(params_slice: []Params) -> (err: Update_Routine_Error) {
+update_routine :: proc(params_slice: []Params, allocator := context.allocator) -> (err: Update_Routine_Error) {
+	pool := mem.Dynamic_Arena{}
+	mem.dynamic_arena_init(&pool)
+	context.allocator = mem.dynamic_arena_allocator(&pool)
+	defer mem.dynamic_arena_destroy(&pool)
 	for {
 		for params in params_slice {
+			defer mem.dynamic_arena_reset(&pool)
+			
 			// TODO: Implement routine
+			
 		}
+		time.sleep(sleep_time)
 	}
 }
 
