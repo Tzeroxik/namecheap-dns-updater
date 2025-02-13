@@ -110,11 +110,17 @@ init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_
 
 	for arg in args {
 		param_strs := strings.split(arg[1:], ":") or_return
+		defer delete_slice(param_strs)
+
 		if len(param_strs) != 3 {
 			err = .Wrong_Params_Len
 			return
 		}
-		params := Profile{param_strs[0], param_strs[1], param_strs[2]}
+		params := Profile{
+			strings.clone_from(param_strs[0]) or_return, 
+			strings.clone_from(param_strs[1]) or_return, 
+			strings.clone_from(param_strs[2]) or_return
+		}
 		append_elem(&profiles_arr, params)
 	}
 	params_slice = profiles_arr[:]
@@ -124,9 +130,9 @@ init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_
 delete_profiles :: proc(profiles: []Profile, allocator:= context.allocator) -> (err: mem.Allocator_Error) {
 	context.allocator = allocator;
 	for profile in profiles {
-		mem.delete_string(profile.domain) or_return
-		mem.delete_string(profile.host)	or_return
-		mem.delete_string(profile.password)	or_return
+		delete_string(profile.host) or_return
+		delete_string(profile.domain) or_return
+		delete_string(profile.password) or_return
 	}
 	return delete_slice(profiles)
 }
