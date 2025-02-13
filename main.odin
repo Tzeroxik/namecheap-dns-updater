@@ -109,8 +109,7 @@ init_profile:: proc(arg: string) -> (profile: Profile, error: Init_Profile_Error
 	defer delete_slice(param_strs)
 
 	if len(param_strs) != 3 {
-		error = .Wrong_Params_Len
-		return
+		return Profile{}, .Wrong_Params_Len
 	}
 
 	profile = Profile{
@@ -118,7 +117,8 @@ init_profile:: proc(arg: string) -> (profile: Profile, error: Init_Profile_Error
 		strings.clone_from(param_strs[1]) or_return, 
 		strings.clone_from(param_strs[2]) or_return
 	}
-	return
+
+	return profile, error 
 }
 
 delete_profile :: proc(profile: Profile) -> (err: mem.Allocator_Error) {
@@ -134,8 +134,7 @@ init_profiles :: proc(args: []string, allocator := context.allocator) -> (profil
 	arg_len := len(args)
 
 	if arg_len == 0 {
-		error = .No_Args_Provided
-		return
+		return nil, .No_Args_Provided
 	}
 
 	profiles_arr := make_dynamic_array_len_cap([dynamic]Profile, 0, arg_len) or_return
@@ -148,8 +147,7 @@ init_profiles :: proc(args: []string, allocator := context.allocator) -> (profil
 		append_elem(&profiles_arr, profile)
 	}
 
-	profiles = profiles_arr[:]
-	return
+	return profiles_arr[:], error
 }
 
 delete_profiles :: proc(profiles: []Profile, allocator:= context.allocator) -> (err: mem.Allocator_Error) {
@@ -185,11 +183,9 @@ test_init_profile :: proc(t: ^testing.T){
 
 	if err != nil {
 		fmt.println(err)
-		testing.fail_now(t,"init_profiles failed")
+		testing.fail_now(t,"failed profile initialization")
 	}
 
-	actual_profile := profiles[0]
-	testing.expect_value(t,actual_profile.host , "@")
-	testing.expect_value(t,actual_profile.domain,"example.com")
-	testing.expect_value(t,actual_profile.api_key,"1kdsaçdksakdçaslçdkças0238902i0")
+	expected_profile := Profile{"@","example.com","1kdsaçdksakdçaslçdkças0238902i0"}
+	testing.expect_value(t, profiles[0], expected_profile)
 }
