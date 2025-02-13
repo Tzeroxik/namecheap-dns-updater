@@ -5,11 +5,12 @@ import "core:mem"
 import "core:os"
 import "core:strings"
 import "core:time"
+import "core:net"
 
-update_endpoint :: "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=${domain}&password=${password}&ip=${ip}"
-sleep_time :: time.Minute * 15
+UPDATE_ENDPOINT :: "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=${domain}&password=${password}&ip=${ip}"
+SLEEP_TIME :: time.Minute * 15
 
-Params :: struct {
+Profile :: struct {
 	host:     string,
 	domain:   string,
 	password: string,
@@ -21,7 +22,7 @@ Run_Error :: union {
 }
 
 Update_Routine_Error :: union {
-	int, // TODO
+	net.Network_Error,
 }
 
 Process_Args_Error :: union {
@@ -53,10 +54,10 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 		defer de_init_tracking_alloc(&track_alloc)
 	}
 
-	params_slice := init_params_slice(os.args) or_return
-	defer delete_slice(params_slice)
+	profiles := init_profiles(os.args) or_return
+	defer delete_slice(profiles)
 
-	if err = update_routine(params_slice); err != nil {
+	if err = update_routine(profiles); err != nil {
 		log.info("setup_and_run - Exited without error")
 		return
 	}
@@ -67,29 +68,34 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	case Process_Args_Error: error_message = "setup_and_run - error processing arguments - %s"
 	case Update_Routine_Error: error_message = "setup_and_run - error while looping - %s"
 	}
-
+	
 	log.errorf(error_message, err)
 	return
 }
 
-update_routine :: proc(params_slice: []Params, allocator := context.allocator) -> (err: Update_Routine_Error) {
+update_routine :: proc(profiles: []Profile, allocator := context.allocator) -> (err: Update_Routine_Error) {
 	pool := mem.Dynamic_Arena{}
 	mem.dynamic_arena_init(&pool)
 	context.allocator = mem.dynamic_arena_allocator(&pool)
 	defer mem.dynamic_arena_destroy(&pool)
+
 	for {
-		for params in params_slice {
+
+	
+		
+		for params in profiles {
 			defer mem.dynamic_arena_reset(&pool)
+			
 			
 			// TODO: Implement routine
 			
 		}
-		time.sleep(sleep_time)
+		time.sleep(SLEEP_TIME)
 	}
 }
 
 // Free with `delete_slice`
-init_params_slice :: proc(args: []string) -> (params_slice: []Params, err: Process_Args_Error) {
+init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_Args_Error) {
 	arg_len := len(args)
 
 	if arg_len == 0 {
@@ -97,9 +103,9 @@ init_params_slice :: proc(args: []string) -> (params_slice: []Params, err: Proce
 		return
 	}
 
-	param_arr := make_dynamic_array_len_cap([dynamic]Params, 0, arg_len) or_return
+	profiles_arr := make_dynamic_array_len_cap([dynamic]Profile, 0, arg_len) or_return
 	defer if err != nil {
-		delete_dynamic_array(param_arr)
+		delete_dynamic_array(profiles_arr)
 	}
 
 	for arg in args {
@@ -108,10 +114,10 @@ init_params_slice :: proc(args: []string) -> (params_slice: []Params, err: Proce
 			err = .Wrong_Params_Len
 			return
 		}
-		params := Params{param_strs[0], param_strs[1], param_strs[2]}
-		append_elem(&param_arr, params)
+		params := Profile{param_strs[0], param_strs[1], param_strs[2]}
+		append_elem(&profiles_arr, params)
 	}
-	params_slice = param_arr[:]
+	params_slice = profiles_arr[:]
 	return
 }
 
@@ -130,3 +136,5 @@ de_init_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
 	}
 	mem.tracking_allocator_destroy(track_alloc)
 }
+
+test_get_profiles :: proc(){}
