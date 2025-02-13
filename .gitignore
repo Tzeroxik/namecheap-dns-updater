@@ -1,6 +1,7 @@
 ols.json
 .DS_Store
-.exe
+*.exe
+namecheap-dns-updater
 
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,intellij+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,intellij+all
