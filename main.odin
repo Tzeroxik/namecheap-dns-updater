@@ -30,10 +30,10 @@ Update_Routine_Error :: union {
 
 Init_Profile_Error :: union {
 	mem.Allocator_Error,
-	Create_Profile_Error_Type
+	Init_Profile_Error_Type
 }
 
-Create_Profile_Error_Type :: enum {
+Init_Profile_Error_Type :: enum {
 	Wrong_Params_Len,
 	No_Args_Provided,
 }
