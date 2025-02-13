@@ -118,7 +118,7 @@ init_profile:: proc(arg: string) -> (profile: Profile, error: Init_Profile_Error
 		strings.clone_from(param_strs[2]) or_return
 	}
 
-	return profile, error 
+	return profile, nil
 }
 
 delete_profile :: proc(profile: Profile) -> (err: mem.Allocator_Error) {
@@ -144,10 +144,10 @@ init_profiles :: proc(args: []string, allocator := context.allocator) -> (profil
 
 	for arg in args {
 		profile := init_profile(arg) or_return
-		append_elem(&profiles_arr, profile)
+		append_elem(&profiles_arr, profile) or_return
 	}
 
-	return profiles_arr[:], error
+	return profiles_arr[:], nil
 }
 
 delete_profiles :: proc(profiles: []Profile, allocator:= context.allocator) -> (err: mem.Allocator_Error) {
