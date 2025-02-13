@@ -19,7 +19,7 @@ Profile :: struct {
 }
 
 Run_Error :: union {
-	Process_Args_Error,
+	Init_Profile_Error,
 	Update_Routine_Error,
 	mem.Allocator_Error,
 }
@@ -28,12 +28,12 @@ Update_Routine_Error :: union {
 	net.Network_Error,
 }
 
-Process_Args_Error :: union {
+Init_Profile_Error :: union {
 	mem.Allocator_Error,
-	Args_Error
+	Create_Profile_Error_Type
 }
 
-Args_Error :: enum {
+Create_Profile_Error_Type :: enum {
 	Wrong_Params_Len,
 	No_Args_Provided,
 }
@@ -54,7 +54,7 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 		track_alloc: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track_alloc, context.allocator)
 		context.allocator = mem.tracking_allocator(&track_alloc)
-		defer de_init_tracking_alloc(&track_alloc)
+		defer delete_tracking_alloc(&track_alloc)
 	}
 	
 	if len(os.args) < 2 {
@@ -73,7 +73,7 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	// handle errors
 	error_message: string = ""
 	switch _ in err {
-	case Process_Args_Error: error_message = "error processing arguments - %s"
+	case Init_Profile_Error: error_message = "error processing arguments - %s"
 	case Update_Routine_Error: error_message = "error while looping - %s"
 	case mem.Allocator_Error: error_message = "error while allocating - %s"
 	}
@@ -88,8 +88,9 @@ update_routine :: proc(profiles: []Profile, allocator := context.allocator) -> (
 	context.allocator = mem.dynamic_arena_allocator(&pool)
 	defer mem.dynamic_arena_destroy(&pool)
 
+	iteration := 0
 	for {
-		
+		log.infof("Starting iteration %d", iteration)
 		for params in profiles {
 			defer mem.dynamic_arena_reset(&pool)
 			
@@ -98,53 +99,68 @@ update_routine :: proc(profiles: []Profile, allocator := context.allocator) -> (
 			
 		}
 		time.sleep(SLEEP_TIME)
+		iteration += 1
 	}
 }
 
+// free with `delete_profile`
+init_profile:: proc(arg: string) -> (profile: Profile, error: Init_Profile_Error) {
+	param_strs := strings.split(arg, ":") or_return
+	defer delete_slice(param_strs)
+
+	if len(param_strs) != 3 {
+		error = .Wrong_Params_Len
+		return
+	}
+
+	profile = Profile{
+		strings.clone_from(param_strs[0]) or_return, 
+		strings.clone_from(param_strs[1]) or_return, 
+		strings.clone_from(param_strs[2]) or_return
+	}
+	return
+}
+
+delete_profile :: proc(profile: Profile) -> (err: mem.Allocator_Error) {
+	delete_string(profile.host) or_return
+	delete_string(profile.domain) or_return
+	delete_string(profile.api_key) or_return
+	return
+}
+
 // Free with `delete_profiles`
-init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_Args_Error) {
+init_profiles :: proc(args: []string, allocator := context.allocator) -> (profiles: []Profile, error: Init_Profile_Error) {
+	context.allocator = allocator
 	arg_len := len(args)
 
 	if arg_len == 0 {
-		err = .No_Args_Provided
+		error = .No_Args_Provided
 		return
 	}
 
 	profiles_arr := make_dynamic_array_len_cap([dynamic]Profile, 0, arg_len) or_return
-	defer if err != nil {
+	defer if error != nil {
 		delete_dynamic_array(profiles_arr)
 	}
 
 	for arg in args {
-		param_strs := strings.split(arg, ":") or_return
-		defer delete_slice(param_strs)
-
-		if len(param_strs) != 3 {
-			err = .Wrong_Params_Len
-			return
-		}
-		params := Profile{
-			strings.clone_from(param_strs[0]) or_return, 
-			strings.clone_from(param_strs[1]) or_return, 
-			strings.clone_from(param_strs[2]) or_return
-		}
-		append_elem(&profiles_arr, params)
+		profile := init_profile(arg) or_return
+		append_elem(&profiles_arr, profile)
 	}
-	params_slice = profiles_arr[:]
+
+	profiles = profiles_arr[:]
 	return
 }
 
 delete_profiles :: proc(profiles: []Profile, allocator:= context.allocator) -> (err: mem.Allocator_Error) {
 	context.allocator = allocator;
 	for profile in profiles {
-		delete_string(profile.host) or_return
-		delete_string(profile.domain) or_return
-		delete_string(profile.api_key) or_return
+		delete_profile(profile) or_return
 	}
 	return delete_slice(profiles)
 }
 
-de_init_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
+delete_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
 	if len(track_alloc.allocation_map) > 0 {
 		log.errorf("=== %v allocations not freed: ===\n", len(track_alloc.allocation_map))
 		for _, entry in track_alloc.allocation_map {
