@@ -15,12 +15,13 @@ SLEEP_TIME :: time.Minute * 15
 Profile :: struct {
 	host:     string,
 	domain:   string,
-	password: string,
+	api_key: string,
 }
 
 Run_Error :: union {
 	Process_Args_Error,
 	Update_Routine_Error,
+	mem.Allocator_Error,
 }
 
 Update_Routine_Error :: union {
@@ -55,8 +56,13 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 		context.allocator = mem.tracking_allocator(&track_alloc)
 		defer de_init_tracking_alloc(&track_alloc)
 	}
+	
+	if len(os.args) < 2 {
+		log.error("Invalid os.args size")
+		return
+	}
 
-	profiles := init_profiles(os.args) or_return
+	profiles := init_profiles(os.args[1:]) or_return
 	defer delete_profiles(profiles)
 
 	if err = update_routine(profiles); err != nil {
@@ -67,8 +73,9 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	// handle errors
 	error_message: string = ""
 	switch _ in err {
-	case Process_Args_Error: error_message = "setup_and_run - error processing arguments - %s"
-	case Update_Routine_Error: error_message = "setup_and_run - error while looping - %s"
+	case Process_Args_Error: error_message = "error processing arguments - %s"
+	case Update_Routine_Error: error_message = "error while looping - %s"
+	case mem.Allocator_Error: error_message = "error while allocating - %s"
 	}
 	
 	log.errorf(error_message, err)
@@ -94,7 +101,7 @@ update_routine :: proc(profiles: []Profile, allocator := context.allocator) -> (
 	}
 }
 
-// Free with `delete_slice`
+// Free with `delete_profiles`
 init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_Args_Error) {
 	arg_len := len(args)
 
@@ -109,7 +116,7 @@ init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_
 	}
 
 	for arg in args {
-		param_strs := strings.split(arg[1:], ":") or_return
+		param_strs := strings.split(arg, ":") or_return
 		defer delete_slice(param_strs)
 
 		if len(param_strs) != 3 {
@@ -132,7 +139,7 @@ delete_profiles :: proc(profiles: []Profile, allocator:= context.allocator) -> (
 	for profile in profiles {
 		delete_string(profile.host) or_return
 		delete_string(profile.domain) or_return
-		delete_string(profile.password) or_return
+		delete_string(profile.api_key) or_return
 	}
 	return delete_slice(profiles)
 }
@@ -156,17 +163,17 @@ de_init_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
 @(test)
 test_init_profile :: proc(t: ^testing.T){
 	
-
 	profile := []string { "@:example.com:1kdsaçdksakdçaslçdkças0238902i0" }
 	profiles, err := init_profiles(profile)
 	defer delete_profiles(profiles)
 
 	if err != nil {
 		fmt.println(err)
-		testing.fail_now(t,"error")
+		testing.fail_now(t,"init_profiles failed")
 	}
 
-	for profile in profiles {
-		fmt.printfln("%v", profile)
-	}
+	actual_profile := profiles[0]
+	testing.expect_value(t,actual_profile.host , "@")
+	testing.expect_value(t,actual_profile.domain,"example.com")
+	testing.expect_value(t,actual_profile.api_key,"1kdsaçdksakdçaslçdkças0238902i0")
 }
