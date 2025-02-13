@@ -6,6 +6,8 @@ import "core:os"
 import "core:strings"
 import "core:time"
 import "core:net"
+import "core:testing"
+import "core:fmt"
 
 UPDATE_ENDPOINT :: "https://dynamicdns.park-your-domain.com/update?host=${host}&domain=${domain}&password=${password}&ip=${ip}"
 SLEEP_TIME :: time.Minute * 15
@@ -55,7 +57,7 @@ setup_and_run :: proc(allocator := context.allocator) -> (err: Run_Error) {
 	}
 
 	profiles := init_profiles(os.args) or_return
-	defer delete_slice(profiles)
+	defer delete_profiles(profiles)
 
 	if err = update_routine(profiles); err != nil {
 		log.info("setup_and_run - Exited without error")
@@ -80,8 +82,6 @@ update_routine :: proc(profiles: []Profile, allocator := context.allocator) -> (
 	defer mem.dynamic_arena_destroy(&pool)
 
 	for {
-
-	
 		
 		for params in profiles {
 			defer mem.dynamic_arena_reset(&pool)
@@ -121,6 +121,16 @@ init_profiles :: proc(args: []string) -> (params_slice: []Profile, err: Process_
 	return
 }
 
+delete_profiles :: proc(profiles: []Profile, allocator:= context.allocator) -> (err: mem.Allocator_Error) {
+	context.allocator = allocator;
+	for profile in profiles {
+		mem.delete_string(profile.domain) or_return
+		mem.delete_string(profile.host)	or_return
+		mem.delete_string(profile.password)	or_return
+	}
+	return delete_slice(profiles)
+}
+
 de_init_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
 	if len(track_alloc.allocation_map) > 0 {
 		log.errorf("=== %v allocations not freed: ===\n", len(track_alloc.allocation_map))
@@ -137,4 +147,20 @@ de_init_tracking_alloc :: proc(track_alloc: ^mem.Tracking_Allocator) {
 	mem.tracking_allocator_destroy(track_alloc)
 }
 
-test_get_profiles :: proc(){}
+@(test)
+test_init_profile :: proc(t: ^testing.T){
+	
+
+	profile := []string { "@:example.com:1kdsaçdksakdçaslçdkças0238902i0" }
+	profiles, err := init_profiles(profile)
+	defer delete_profiles(profiles)
+
+	if err != nil {
+		fmt.println(err)
+		testing.fail_now(t,"error")
+	}
+
+	for profile in profiles {
+		fmt.printfln("%v", profile)
+	}
+}
