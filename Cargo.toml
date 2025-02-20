@@ -1,7 +1,8 @@
 [package]
-name = "namecheap_dns_updater"
+name = "namecheap-dns-updater"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-dns-lookup = "2.0.4"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
