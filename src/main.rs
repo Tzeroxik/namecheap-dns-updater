@@ -1,4 +1,5 @@
 use std::env::args;
+use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
 
@@ -26,7 +27,7 @@ enum UpdateError {
 }
 
 impl Display for UpdateError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         
         let msg = match self {
             UpdateError::MissingArg(name) => 
@@ -43,8 +44,6 @@ impl Display for UpdateError {
 
 #[tokio::main]
 async fn main() {
-
-    let http_client = Client::new();
     
     let profiles = 
         args()
@@ -52,13 +51,15 @@ async fn main() {
             .map(try_parse_profile)
             .collect::<Result<Vec<Profile>, UpdateError>>()
             .unwrap_or_else(|error| panic!("{error}"));
-
+    
+    let http_client = Client::new();
+    
     loop {
         let public_ip =
             get_public_ip(&http_client, &GET_IP_ENDPOINTS)
                 .await
                 .unwrap_or_else(|error| panic!("{error}"));
-
+    
         for profile in &profiles {
             println!("public IP = {public_ip}");
         }
@@ -73,7 +74,7 @@ async fn get_public_ip_from_endpoint(endpoint: &str, client: &Client) -> Result<
 }
 
 async fn get_public_ip(client: &Client, endpoints: &[&str]) -> Result<String, UpdateError> {
-    let mut errors: Vec<reqwest::Error> = Vec::new();
+    let mut errors: Vec<reqwest::Error> = Vec::with_capacity(endpoints.len());
     for &endpoint in endpoints {
         match get_public_ip_from_endpoint(endpoint, client).await { 
             Ok(public_ip) => return Ok(public_ip),
@@ -85,7 +86,8 @@ async fn get_public_ip(client: &Client, endpoints: &[&str]) -> Result<String, Up
 
 fn try_parse_profile(profile: String) -> Result<Profile, UpdateError> {
     let mut fields_iter=
-        profile.split(":")
+        profile
+            .split(":")
             .skip(1)
             .map(|s| s.to_owned());
     
